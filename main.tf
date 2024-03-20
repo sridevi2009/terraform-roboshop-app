@@ -5,13 +5,13 @@ resource "aws_lb_target_group" "component" {
     vpc_id = var.vpc_id
     deregistration_delay = 60
     health_check {
-        healthy_threshold = 2
-        interval = 10
-        unhealthy_threshold = 3
-        timeout = 5
-        path = "/health"
-        port = 8080
-        matcher = "200-299"
+      healthy_threshold = 2
+      interval = 10
+      unhealthy_threshold = 3
+      timeout = 5
+      path = "/health"
+      port = 8080
+      matcher = "200-299"
     }
 }
 
@@ -34,54 +34,54 @@ module "component" {
 resource "null_resource" "component" {
   # Changes to any instance of the cluster requires re-provisioning
     triggers = {
-        instance_id = module.component.id
+      instance_id = module.component.id
     }
 
   # Bootstrap script can run on any instance of the cluster
   # So we just choose the first in this case
     connection {
-        host = module.component.private_ip
-        type = "ssh"
-        user = "centos"
-        password = "DevOps321"
+      host = module.component.private_ip
+      type = "ssh"
+      user = "centos"
+      password = "DevOps321"
     }  
 
     provisioner "file" {
-        source      = "bootstrap.sh"
-        destination = "/tmp/bootstrap.sh"
+      source      = "bootstrap.sh"
+      destination = "/tmp/bootstrap.sh"
     }
 
     provisioner "remote-exec" {
         # Bootstrap script called with private_ip of each node in the cluster
         inline = [
-            "chmod +x /tmp/bootsrap.sh",
-            "sudo sh /tmp/bootstrap.sh ${var.tags.component} ${var.environment}"
+          "chmod +x /tmp/bootsrap.sh",
+          "sudo sh /tmp/bootstrap.sh ${var.tags.component} ${var.environment} ${var.app_version}"
         ]    
     }
   
 }
 
 resource "aws_ec2_instance_state" "component" {
-    instance_id = module.component.id
-    state = "stopped"
-    depends_on = [ null_resource.component ]
+  instance_id = module.component.id
+  state = "stopped"
+  depends_on = [ null_resource.component ]
 }
 
 resource "aws_ami_from_instance" "component" {
-    name = "${local.name}-${var.tags.component}-${local.current_time}"
-    source_instance_id = module.component.id
-    depends_on = [ aws_ec2_instance_state.component ]
+  name = "${local.name}-${var.tags.component}-${local.current_time}"
+  source_instance_id = module.component.id
+  depends_on = [ aws_ec2_instance_state.component ]
 }
 
 resource "null_resource" "component_delete" {
   # Changes to any instance of the cluster requires re-provisioning
     triggers = {
-        instance_id = module.component.id
+      instance_id = module.component.id
     }
 
     provisioner "local-exec" {
-        # Bootstrap script called with private_ip of each node in the cluster
-        command = "aws ec2 terminate-instances --instance-ids ${module.component.id}"   
+      # Bootstrap script called with private_ip of each node in the cluster
+      command = "aws ec2 terminate-instances --instance-ids ${module.component.id}"   
     }
     
     depends_on = [ aws_ami_from_instance.component ]

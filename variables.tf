@@ -46,3 +46,6 @@ variable "app_alb_listener_arn" {
 variable "rule_priority" {
     
 }
+variable "app_version" {
+   
+}
